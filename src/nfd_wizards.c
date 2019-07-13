@@ -39,7 +39,7 @@ sw_nfdchar_t *sw_NFD_PathSet_GetPath( const sw_nfdpathset_t *pathSet, size_t ind
 }
 
 void sw_NFD_PathSet_Free( sw_nfdpathset_t *pathSet ) {
-    return NFD_PathSet_Free((nfdpathset_t*) pathSet);
+    NFD_PathSet_Free((nfdpathset_t*) pathSet);
 }
 
 void sw_NFD_Free(void* ptr) {
