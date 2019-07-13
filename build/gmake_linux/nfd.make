@@ -10,6 +10,8 @@ endif
 
 .PHONY: clean prebuild prelink
 
+ALL_CFLAGS += -fPIC
+
 ifeq ($(config),release_x64)
   RESCOMP = windres
   TARGETDIR = ../lib/Release/x64
