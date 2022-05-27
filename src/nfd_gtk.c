@@ -29,7 +29,7 @@ static void AddTypeToFilterName( const char *typebuf, char *filterName, size_t b
     strncat( filterName, typebuf, bufsize - len - 1 );
 }
 
-static void AddFiltersToDialog( GtkWidget *dialog, const char *filterList )
+static void AddFiltersToDialog( GtkFileChooser *chooser, const char *filterList )
 {
     GtkFileFilter *filter;
     char typebuf[NFD_MAX_STRLEN] = {0};
@@ -65,7 +65,7 @@ static void AddFiltersToDialog( GtkWidget *dialog, const char *filterList )
             /* end of filter -- add it to the dialog */
             
             gtk_file_filter_set_name( filter, filterName );
-            gtk_file_chooser_add_filter( GTK_FILE_CHOOSER(dialog), filter );
+            gtk_file_chooser_add_filter( chooser, filter );
 
             filterName[0] = '\0';
 
@@ -89,10 +89,10 @@ static void AddFiltersToDialog( GtkWidget *dialog, const char *filterList )
     filter = gtk_file_filter_new();
     gtk_file_filter_set_name( filter, "*.*" );
     gtk_file_filter_add_pattern( filter, "*" );
-    gtk_file_chooser_add_filter( GTK_FILE_CHOOSER(dialog), filter );
+    gtk_file_chooser_add_filter( chooser, filter );
 }
 
-static void SetDefaultPath( GtkWidget *dialog, const char *defaultPath )
+static void SetDefaultPath( GtkFileChooser *chooser, const char *defaultPath )
 {
     if ( !defaultPath || strlen(defaultPath) == 0 )
         return;
@@ -102,7 +102,7 @@ static void SetDefaultPath( GtkWidget *dialog, const char *defaultPath )
 
        If consistency with the native OS is preferred, this is the line
        to comment out. -ml */
-    gtk_file_chooser_set_current_folder( GTK_FILE_CHOOSER(dialog), defaultPath );
+    gtk_file_chooser_set_current_folder( chooser, defaultPath );
 }
 
 static nfdresult_t AllocPathSet( GSList *fileList, nfdpathset_t *pathSet )
@@ -169,7 +169,7 @@ nfdresult_t NFD_OpenDialog( const nfdchar_t *filterList,
                             const nfdchar_t *defaultPath,
                             nfdchar_t **outPath )
 {    
-    GtkWidget *dialog;
+    GtkFileChooserNative *dialog;
     nfdresult_t result;
 
     if ( !gtk_init_check( NULL, NULL ) )
@@ -178,21 +178,20 @@ nfdresult_t NFD_OpenDialog( const nfdchar_t *filterList,
         return NFD_ERROR;
     }
 
-    dialog = gtk_file_chooser_dialog_new( "Open File",
+    dialog = gtk_file_chooser_native_new( "Open File",
                                           NULL,
                                           GTK_FILE_CHOOSER_ACTION_OPEN,
-                                          "_Cancel", GTK_RESPONSE_CANCEL,
-                                          "_Open", GTK_RESPONSE_ACCEPT,
-                                          NULL );
+                                          "_Open",
+                                          "_Cancel" );
 
     /* Build the filter list */
-    AddFiltersToDialog(dialog, filterList);
+    AddFiltersToDialog( GTK_FILE_CHOOSER(dialog), filterList );
 
     /* Set the default path */
-    SetDefaultPath(dialog, defaultPath);
+    SetDefaultPath( GTK_FILE_CHOOSER(dialog), defaultPath );
 
     result = NFD_CANCEL;
-    if ( gtk_dialog_run( GTK_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
+    if ( gtk_native_dialog_run( GTK_NATIVE_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
     {
         char *filename;
 
@@ -205,7 +204,7 @@ nfdresult_t NFD_OpenDialog( const nfdchar_t *filterList,
             if ( !*outPath )
             {
                 g_free( filename );
-                gtk_widget_destroy(dialog);
+                gtk_native_dialog_destroy( GTK_NATIVE_DIALOG(dialog) );
                 return NFD_ERROR;
             }
         }
@@ -215,7 +214,7 @@ nfdresult_t NFD_OpenDialog( const nfdchar_t *filterList,
     }
 
     WaitForCleanup();
-    gtk_widget_destroy(dialog);
+    gtk_native_dialog_destroy( GTK_NATIVE_DIALOG(dialog) );
     WaitForCleanup();
 
     return result;
@@ -226,7 +225,7 @@ nfdresult_t NFD_OpenDialogMultiple( const nfdchar_t *filterList,
                                     const nfdchar_t *defaultPath,
                                     nfdpathset_t *outPaths )
 {
-    GtkWidget *dialog;
+    GtkFileChooserNative *dialog;
     nfdresult_t result;
 
     if ( !gtk_init_check( NULL, NULL ) )
@@ -235,27 +234,26 @@ nfdresult_t NFD_OpenDialogMultiple( const nfdchar_t *filterList,
         return NFD_ERROR;
     }
 
-    dialog = gtk_file_chooser_dialog_new( "Open Files",
+    dialog = gtk_file_chooser_native_new( "Open Files",
                                           NULL,
                                           GTK_FILE_CHOOSER_ACTION_OPEN,
-                                          "_Cancel", GTK_RESPONSE_CANCEL,
-                                          "_Open", GTK_RESPONSE_ACCEPT,
-                                          NULL );
+                                          "_Open",
+                                          "_Cancel" );
     gtk_file_chooser_set_select_multiple( GTK_FILE_CHOOSER(dialog), TRUE );
 
     /* Build the filter list */
-    AddFiltersToDialog(dialog, filterList);
+    AddFiltersToDialog( GTK_FILE_CHOOSER(dialog), filterList );
 
     /* Set the default path */
-    SetDefaultPath(dialog, defaultPath);
+    SetDefaultPath( GTK_FILE_CHOOSER(dialog), defaultPath );
 
     result = NFD_CANCEL;
-    if ( gtk_dialog_run( GTK_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
+    if ( gtk_native_dialog_run( GTK_NATIVE_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
     {
         GSList *fileList = gtk_file_chooser_get_filenames( GTK_FILE_CHOOSER(dialog) );
         if ( AllocPathSet( fileList, outPaths ) == NFD_ERROR )
         {
-            gtk_widget_destroy(dialog);
+            gtk_native_dialog_destroy( GTK_NATIVE_DIALOG(dialog) );
             return NFD_ERROR;
         }
         
@@ -263,7 +261,7 @@ nfdresult_t NFD_OpenDialogMultiple( const nfdchar_t *filterList,
     }
 
     WaitForCleanup();
-    gtk_widget_destroy(dialog);
+    gtk_native_dialog_destroy( GTK_NATIVE_DIALOG(dialog) );
     WaitForCleanup();
 
     return result;
@@ -273,7 +271,7 @@ nfdresult_t NFD_SaveDialog( const nfdchar_t *filterList,
                             const nfdchar_t *defaultPath,
                             nfdchar_t **outPath )
 {
-    GtkWidget *dialog;
+    GtkFileChooserNative *dialog;
     nfdresult_t result;
 
     if ( !gtk_init_check( NULL, NULL ) )
@@ -282,22 +280,21 @@ nfdresult_t NFD_SaveDialog( const nfdchar_t *filterList,
         return NFD_ERROR;
     }
 
-    dialog = gtk_file_chooser_dialog_new( "Save File",
+    dialog = gtk_file_chooser_native_new( "Save File",
                                           NULL,
                                           GTK_FILE_CHOOSER_ACTION_SAVE,
-                                          "_Cancel", GTK_RESPONSE_CANCEL,
-                                          "_Save", GTK_RESPONSE_ACCEPT,
-                                          NULL ); 
+                                          "_Save",
+                                          "_Cancel" );
     gtk_file_chooser_set_do_overwrite_confirmation( GTK_FILE_CHOOSER(dialog), TRUE );
 
     /* Build the filter list */    
-    AddFiltersToDialog(dialog, filterList);
+    AddFiltersToDialog( GTK_FILE_CHOOSER(dialog), filterList );
 
     /* Set the default path */
-    SetDefaultPath(dialog, defaultPath);
+    SetDefaultPath( GTK_FILE_CHOOSER(dialog), defaultPath );
     
     result = NFD_CANCEL;    
-    if ( gtk_dialog_run( GTK_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
+    if ( gtk_native_dialog_run( GTK_NATIVE_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
     {
         char *filename;
         filename = gtk_file_chooser_get_filename( GTK_FILE_CHOOSER(dialog) );
@@ -309,7 +306,7 @@ nfdresult_t NFD_SaveDialog( const nfdchar_t *filterList,
             if ( !*outPath )
             {
                 g_free( filename );
-                gtk_widget_destroy(dialog);
+                gtk_native_dialog_destroy( GTK_NATIVE_DIALOG(dialog) );
                 return NFD_ERROR;
             }
         }
@@ -319,7 +316,7 @@ nfdresult_t NFD_SaveDialog( const nfdchar_t *filterList,
     }
 
     WaitForCleanup();
-    gtk_widget_destroy(dialog);
+    gtk_native_dialog_destroy( GTK_NATIVE_DIALOG(dialog) );
     WaitForCleanup();
     
     return result;
@@ -328,7 +325,7 @@ nfdresult_t NFD_SaveDialog( const nfdchar_t *filterList,
 nfdresult_t NFD_PickFolder(const nfdchar_t *defaultPath,
     nfdchar_t **outPath)
 {
-    GtkWidget *dialog;
+    GtkFileChooserNative *dialog;
     nfdresult_t result;
 
     if (!gtk_init_check(NULL, NULL))
@@ -337,20 +334,19 @@ nfdresult_t NFD_PickFolder(const nfdchar_t *defaultPath,
         return NFD_ERROR;
     }
 
-    dialog = gtk_file_chooser_dialog_new( "Select folder",
+    dialog = gtk_file_chooser_native_new( "Select folder",
                                           NULL,
                                           GTK_FILE_CHOOSER_ACTION_SELECT_FOLDER,
-                                          "_Cancel", GTK_RESPONSE_CANCEL,
-                                          "_Select", GTK_RESPONSE_ACCEPT,
-                                          NULL ); 
+                                          "_Select",
+                                          "_Cancel" );
     gtk_file_chooser_set_do_overwrite_confirmation( GTK_FILE_CHOOSER(dialog), TRUE );
 
 
     /* Set the default path */
-    SetDefaultPath(dialog, defaultPath);
+    SetDefaultPath( GTK_FILE_CHOOSER(dialog), defaultPath );
     
     result = NFD_CANCEL;    
-    if ( gtk_dialog_run( GTK_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
+    if ( gtk_native_dialog_run( GTK_NATIVE_DIALOG(dialog) ) == GTK_RESPONSE_ACCEPT )
     {
         char *filename;
         filename = gtk_file_chooser_get_filename( GTK_FILE_CHOOSER(dialog) );
@@ -362,7 +358,7 @@ nfdresult_t NFD_PickFolder(const nfdchar_t *defaultPath,
             if ( !*outPath )
             {
                 g_free( filename );
-                gtk_widget_destroy(dialog);
+                gtk_native_dialog_destroy( GTK_NATIVE_DIALOG(dialog) );
                 return NFD_ERROR;
             }
         }
@@ -372,7 +368,7 @@ nfdresult_t NFD_PickFolder(const nfdchar_t *defaultPath,
     }
 
     WaitForCleanup();
-    gtk_widget_destroy(dialog);
+    gtk_native_dialog_destroy( GTK_NATIVE_DIALOG(dialog) );
     WaitForCleanup();
     
     return result;
