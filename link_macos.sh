@@ -2,8 +2,13 @@
 
 cd "$(dirname "$0")"
 
-pushd build/gmake_macosx
+pushd build/darwin_multiarch
 make
 popd
 
-clang -Wall -fPIC -O2 -shared -o build/lib/Release/x64/libswnfd.dylib src/nfd_wizards.c -Isrc/include build/lib/Release/x64/libnfd.a -framework Foundation -framework Appkit
+# the result is in build/darwin_multiarch/libswnfd.dylib
+
+# maintain backwards compatiblity with stuff that expects the file in the old location 
+mkdir -p build/lib/Release/x64
+cp build/darwin_multiarch/libswnfd.dylib build/lib/Release/x64/libswnfd.dylib
+
